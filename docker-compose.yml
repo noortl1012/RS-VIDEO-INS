@@ -1,0 +1,55 @@
+version: "3.7"
+
+services:
+  web:
+    build: .
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9000", "--reload"]
+    volumes:
+      - .:/app
+    ports:
+      - "9000:9000"
+    restart: always
+
+  chrome1:
+    image: selenium/node-chrome:latest
+    shm_size: 2gb
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    ports:
+      - "5900:5900" # Expose VNC for chrome
+
+  chrome2:
+    image: selenium/node-chrome:latest
+    shm_size: 2gb
+    depends_on:
+      - selenium-hub2
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub2
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    ports:
+      - "5901:5900" # Expose VNC for chrome
+
+  selenium-hub:
+    hostname: selenium-hub
+    image: selenium/hub:latest
+    container_name: selenium-hub
+    ports:
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
+    restart: unless-stopped
+
+  selenium-hub2:
+    hostname: selenium-hub2
+    image: selenium/hub:latest
+    container_name: selenium-hub2
+    ports:
+      - "4445:4442"
+      - "4446:4443"
+      - "4447:4444"
+    restart: unless-stopped

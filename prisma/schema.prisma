@@ -1,0 +1,389 @@
+generator client {
+  provider                    = "prisma-client-py"
+  enable_experimental_decimal = "true"
+  recursive_type_depth        = "-1"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model banners {
+  id          Int             @id @default(autoincrement())
+  title       String          @db.VarChar(255)
+  description String          @db.VarChar(10000)
+  image_url   String          @db.VarChar(255)
+  status      banners_status? @default(active)
+}
+
+model caseAssociation {
+  id                                          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  case_id                                     BigInt    @db.UnsignedBigInt
+  linked_case_id                              BigInt    @db.UnsignedBigInt
+  created_at                                  DateTime? @default(now()) @db.Timestamp(0)
+  order                                       Int       @default(0)
+  cases_caseAssociation_case_idTocases        cases     @relation("caseAssociation_case_idTocases", fields: [case_id], references: [id], onDelete: Cascade)
+  cases_caseAssociation_linked_case_idTocases cases     @relation("caseAssociation_linked_case_idTocases", fields: [linked_case_id], references: [id], onDelete: Cascade)
+
+  @@index([case_id], map: "idx_case_association_case_id")
+  @@index([linked_case_id], map: "idx_case_association_linked_case_id")
+}
+
+model cases {
+  id                                                    BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  patient_id                                            BigInt               @db.UnsignedBigInt
+  doctor_id                                             BigInt               @db.UnsignedBigInt
+  reason_hold                                           String?              @db.Text
+  in_transit                                            cases_in_transit?
+  fav                                                   Boolean              @default(false)
+  comments                                              String?              @db.LongText
+  approved                                              Int                  @default(0) @db.TinyInt
+  is_archive                                            Int                  @default(0) @db.TinyInt
+  discount_amount                                       Float                @default(0)
+  is_deleted                                            Int                  @default(0) @db.TinyInt
+  created_at                                            DateTime?            @db.Timestamp(0)
+  approved_date                                         DateTime?            @db.DateTime(0)
+  treatment_start_date                                  DateTime?            @db.Timestamp(0)
+  updated_at                                            DateTime?            @db.Timestamp(0)
+  case_data                                             Json
+  personalized_plan                                     String?              @db.VarChar(255)
+  note                                                  String?              @db.VarChar(255)
+  pack_id                                               BigInt?              @db.UnsignedBigInt
+  shipping_link                                         String?              @default("") @db.VarChar(255)
+  pdf_link                                              String?              @db.VarChar(255)
+  arch_selection                                        String?              @db.VarChar(255)
+  general_instructions                                  String?              @db.VarChar(255)
+  smile_summary                                         String?              @db.VarChar(255)
+  movement_chart_summary                                String?              @db.VarChar(255)
+  case_type                                             String?              @default("N") @db.VarChar(255)
+  caseAssociation_caseAssociation_case_idTocases        caseAssociation[]    @relation("caseAssociation_case_idTocases")
+  caseAssociation_caseAssociation_linked_case_idTocases caseAssociation[]    @relation("caseAssociation_linked_case_idTocases")
+  doctors                                               doctors              @relation(fields: [doctor_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_cases_doctor_id")
+  packs                                                 packs?               @relation(fields: [pack_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_cases_pack_id")
+  patients                                              patients             @relation(fields: [patient_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cases_patient_id")
+  construction_files                                    construction_files[]
+  devis                                                 devis[]
+  invoices                                              invoices[]
+  labo_links                                            labo_links[]
+  patient_images                                        patient_images?
+  patient_stls                                          patient_stls?
+  status_histories                                      status_histories[]
+
+  @@index([pack_id], map: "cases_pack_id_fkey")
+  @@index([doctor_id], map: "idx_cases_doctor_id")
+  @@index([patient_id], map: "idx_cases_patient_id")
+  @@index([doctor_id], map: "patient_new_cases_doctor_id_fkey")
+  @@index([patient_id], map: "patient_new_cases_patient_id_fkey")
+}
+
+model construction_files {
+  id         BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  case_id    BigInt    @db.UnsignedBigInt
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  file_path  String    @db.VarChar(255)
+  cases      cases     @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_case_id")
+
+  @@index([case_id], map: "construction_files_case_id_fkey")
+}
+
+model devis {
+  id         BigInt     @id @default(autoincrement()) @db.UnsignedBigInt
+  caseId     BigInt     @db.UnsignedBigInt
+  created_at DateTime   @default(now())
+  price      String?    @db.VarChar(255)
+  status     String?    @default("draft") @db.VarChar(255)
+  due_date   DateTime?  @default(now())
+  reduction  Float?     @default(0)
+  cases      cases      @relation(fields: [caseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_caseId")
+  invoices   invoices[]
+
+  @@index([caseId], map: "devis_caseId_fkey")
+  @@index([caseId], map: "idx_devis_caseId")
+}
+
+model doctors {
+  id                BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id           BigInt              @unique @db.UnsignedBigInt
+  speciality        String?             @db.VarChar(255)
+  office_phone      String?             @db.VarChar(50)
+  address           String?             @db.Text
+  address_2         String?             @db.Text
+  city              String?             @db.VarChar(255)
+  state             String?             @db.VarChar(200)
+  created_at        DateTime?           @default(now()) @db.DateTime(0)
+  updated_at        DateTime?           @db.Timestamp(0)
+  zip               String?             @db.VarChar(255)
+  cases             cases[]
+  users             users               @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_doctors_user_id")
+  patients          patients[]
+  retaining_gutters retaining_gutters[]
+}
+
+model email_verification_codes {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  email           String    @unique(map: "password_resets_email_index") @db.VarChar(255)
+  token           String    @db.VarChar(255)
+  expiration_date DateTime  @db.DateTime(0)
+  created_at      DateTime? @default(now()) @db.DateTime(0)
+}
+
+model invoices {
+  id               BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  case_id          BigInt             @db.UnsignedBigInt
+  amount           Decimal            @default(0.00) @db.Decimal(10, 2)
+  payment_status   String?            @default("unpaid") @db.VarChar(100)
+  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  updated_at       DateTime           @default(now()) @db.Timestamp(0)
+  devis_id         BigInt?            @db.UnsignedBigInt
+  invoice_ref      String             @db.VarChar(100)
+  due_date         DateTime?          @default(now()) @db.Timestamp(0)
+  country_code     String?            @db.VarChar(100)
+  pdf_link         String?            @db.VarChar(255)
+  cases            cases              @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  devis            devis?             @relation(fields: [devis_id], references: [id], onUpdate: NoAction)
+  partial_payments partial_payments[]
+
+  @@index([case_id], map: "idx_invoices_case_id")
+  @@index([devis_id], map: "idx_invoices_devis_id")
+}
+
+model labo_links {
+  id                                          BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  case_id                                     BigInt   @db.UnsignedBigInt
+  created_at                                  DateTime @default(now()) @db.Timestamp(0)
+  iiwgl_link                                  String?  @db.Text
+  admin_validation_status                     String?  @default("not_treated") @db.VarChar(255)
+  doctor_validation_status                    String?  @default("not_treated") @db.VarChar(255)
+  validated_by_admin                          BigInt?  @db.UnsignedBigInt
+  validated_by_doctor                         BigInt?  @db.UnsignedBigInt
+  admin_note                                  String?  @default("") @db.VarChar(255)
+  doctor_note                                 String?  @default("") @db.VarChar(255)
+  pdf_file                                    String?  @db.VarChar(255)
+  video_id                                    String?  @db.VarChar(255)
+  cases                                       cases    @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_labo_links_case_id_new")
+  users_labo_links_validated_by_adminTousers  users?   @relation("labo_links_validated_by_adminTousers", fields: [validated_by_admin], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_labo_links_validated_by_admin")
+  users_labo_links_validated_by_doctorTousers users?   @relation("labo_links_validated_by_doctorTousers", fields: [validated_by_doctor], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_labo_links_validated_by_doctor_new")
+
+  @@index([case_id], map: "fk_labo_links_case_id_new")
+  @@index([validated_by_admin], map: "fk_labo_links_validated_by_admin")
+  @@index([validated_by_doctor], map: "fk_labo_links_validated_by_doctor_new")
+}
+
+model labos {
+  id         BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id    BigInt    @db.UnsignedBigInt
+  lab_name   String    @db.VarChar(255)
+  address    String?   @db.Text
+  city       String?   @db.VarChar(255)
+  state      String?   @db.VarChar(200)
+  country    String?   @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+
+  @@index([user_id], map: "labos_user_id_fkey")
+}
+
+model packs {
+  id                  BigInt   @id @db.UnsignedBigInt
+  name                String   @db.VarChar(255)
+  tnd_price           Float    @db.Float
+  drh_price           Float    @db.Float
+  eur_price           Float    @db.Float
+  nbr_months_duration Int
+  created_at          DateTime @default(now()) @db.DateTime(0)
+  cases               cases[]
+}
+
+model partial_payments {
+  id                       BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  invoice_id               BigInt   @db.UnsignedBigInt
+  amount                   Decimal  @default(0.00) @db.Decimal(10, 2)
+  payment_method           String?  @db.VarChar(100)
+  payment_transaction_code String?  @unique @db.VarChar(100)
+  payment_date             DateTime @default(now()) @db.Timestamp(0)
+  invoices                 invoices @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([invoice_id], map: "idx_partial_payments_invoice_id")
+}
+
+model password_resets {
+  id              BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  email           String    @unique(map: "password_resets_email_index") @db.VarChar(255)
+  token           String    @db.VarChar(255)
+  expiration_date DateTime  @db.DateTime(0)
+  created_at      DateTime? @default(now()) @db.DateTime(0)
+}
+
+model patient_images {
+  id         BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  patient_id BigInt    @db.UnsignedBigInt
+  case_id    BigInt    @unique @db.UnsignedBigInt
+  image1     String?   @db.VarChar(255)
+  image2     String?   @db.VarChar(255)
+  image3     String?   @db.VarChar(255)
+  image4     String?   @db.VarChar(255)
+  image5     String?   @db.VarChar(255)
+  image6     String?   @db.VarChar(255)
+  image7     String?   @db.VarChar(255)
+  image8     String?   @db.VarChar(255)
+  image9     String?   @db.VarChar(255)
+  image10    String?   @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  cases      cases     @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_patient_images_case_id")
+  patients   patients  @relation(fields: [patient_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_patient_images_patient_id")
+
+  @@index([patient_id], map: "fk_patient_images_patient_id")
+}
+
+model patient_stls {
+  id                 BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  patient_id         BigInt    @db.UnsignedBigInt
+  case_id            BigInt    @unique @db.UnsignedBigInt
+  aligner_number     Int       @default(1) @db.TinyInt
+  design_instruction String?   @db.Text
+  custom_file_1      String?   @db.VarChar(255)
+  custom_file_2      String?   @db.VarChar(255)
+  custom_file_3      String?   @db.VarChar(255)
+  created_at         DateTime? @db.Timestamp(0)
+  updated_at         DateTime? @db.Timestamp(0)
+  cases              cases     @relation(fields: [case_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_patient_stls_case_id")
+  patients           patients  @relation(fields: [patient_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_patient_stls_patient_id")
+
+  @@index([patient_id], map: "fk_patient_stls_patient_id")
+}
+
+model patients {
+  id             BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id        BigInt?          @unique @db.UnsignedBigInt
+  doctor_id      BigInt           @db.UnsignedBigInt
+  date_of_birth  String?          @db.VarChar(90)
+  gender         String?          @db.VarChar(255)
+  created_at     DateTime?        @db.Timestamp(0)
+  updated_at     DateTime?        @db.Timestamp(0)
+  first_name     String?          @db.VarChar(255)
+  last_name      String?          @db.VarChar(255)
+  cases          cases[]
+  patient_images patient_images[]
+  patient_stls   patient_stls[]
+  doctors        doctors          @relation(fields: [doctor_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_patients_doctor_id")
+  users          users?           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_patients_user_id")
+
+  @@index([doctor_id], map: "fk_patients_doctor_id")
+}
+
+model permissions {
+  id               BigInt             @id @db.UnsignedBigInt
+  name             String             @unique @db.VarChar(255)
+  description      String?            @db.Text
+  role_permissions role_permissions[]
+}
+
+model pricing {
+  id                              BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  express_single_arch             Float    @default(0)
+  express_dual_arch               Float    @default(0)
+  standard_treatment_single_arch  Float    @default(0)
+  standard_treatment_dual_arch    Float    @default(0)
+  advanced_treatment_single_arch  Float    @default(0)
+  advanced_treatment_dual_arch    Float    @default(0)
+  additional_aligners_single_arch Float    @default(0)
+  additional_aligners_dual_arch   Float    @default(0)
+  retainer_single_arch_1          Float    @default(0)
+  retainer_single_arch_2          Float    @default(0)
+  retainer_single_arch_3          Float    @default(0)
+  dual_arch_1_set_of_retainer     Float    @default(0)
+  dual_arch_2_sets_of_retainers   Float    @default(0)
+  dual_arch_3_sets_of_retainers   Float    @default(0)
+  cancellation_after_design       Float    @default(0)
+  user_id                         Int
+  created_at                      DateTime @default(now()) @db.Timestamp(0)
+  updated_at                      DateTime @default(now()) @db.Timestamp(0)
+}
+
+model retaining_gutters {
+  id                BigInt  @id @default(autoincrement()) @db.UnsignedBigInt
+  patient_firstName String? @db.VarChar(255)
+  patient_lastName  String? @db.VarChar(255)
+  patient_birthDate String? @db.VarChar(255)
+  doctor_id         BigInt  @db.UnsignedBigInt
+  patient_sexe      String? @db.VarChar(255)
+  stl_1             String? @db.VarChar(255)
+  stl_2             String? @db.VarChar(255)
+  stl_3             String? @db.VarChar(255)
+  doctors           doctors @relation(fields: [doctor_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_retaining_gutters_doctor_id")
+
+  @@index([doctor_id], map: "idx_cases_doctor_id")
+  @@index([doctor_id], map: "patient_new_cases_doctor_id_fkey")
+}
+
+model role_permissions {
+  role_id       BigInt      @db.UnsignedBigInt
+  permission_id BigInt      @db.UnsignedBigInt
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_permission_id")
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_role_id")
+
+  @@id([role_id, permission_id])
+  @@index([permission_id], map: "idx_role_permissions_permission_id")
+}
+
+model roles {
+  id               BigInt             @id @db.UnsignedBigInt
+  name             String             @unique @db.VarChar(255)
+  description      String?            @db.Text
+  role_permissions role_permissions[]
+  users            users[]
+}
+
+model status_histories {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  caseId     BigInt   @db.UnsignedBigInt
+  created_at DateTime @default(now())
+  name       String?  @db.VarChar(255)
+  cases      cases    @relation(fields: [caseId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_status_histories_caseId")
+
+  @@index([caseId], map: "status_histories_caseId_fkey")
+}
+
+model users {
+  id                                               BigInt       @id @unique @default(autoincrement()) @db.UnsignedBigInt
+  role_id                                          BigInt       @db.UnsignedBigInt
+  password                                         String       @db.VarChar(255)
+  last_login                                       DateTime?    @db.DateTime(0)
+  status                                           Boolean?     @default(false)
+  email                                            String       @unique(map: "unique_email") @db.VarChar(255)
+  first_name                                       String?      @db.VarChar(255)
+  last_name                                        String?      @db.VarChar(255)
+  user_name                                        String?      @db.VarChar(255)
+  phone                                            String?      @unique(map: "unique_phone") @default("") @db.VarChar(255)
+  created_at                                       DateTime?    @db.Timestamp(0)
+  updated_at                                       DateTime?    @db.Timestamp(0)
+  profile_pic                                      String?      @db.VarChar(255)
+  email_verified                                   Boolean      @default(false)
+  phone_verified                                   Boolean      @default(false)
+  two_factor_enabled                               Boolean      @default(false)
+  country                                          String?      @db.VarChar(255)
+  failedLoginAttempts                              Int          @default(0)
+  lockUntil                                        DateTime?
+  has_mobile_account                               Boolean      @default(false)
+  admin_verified                                   Int          @default(0) @db.TinyInt
+  doctors                                          doctors?
+  labo_links_labo_links_validated_by_adminTousers  labo_links[] @relation("labo_links_validated_by_adminTousers")
+  labo_links_labo_links_validated_by_doctorTousers labo_links[] @relation("labo_links_validated_by_doctorTousers")
+  patients                                         patients?
+  roles                                            roles        @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_role_id")
+
+  @@index([role_id], map: "idx_users_role_id")
+}
+
+enum banners_status {
+  active
+  inactive
+}
+
+enum cases_in_transit {
+  D
+  I
+}
